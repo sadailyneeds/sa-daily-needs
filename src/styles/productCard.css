@@ -112,3 +112,21 @@
 @media (min-width: 1200px) {
   .product-grid { grid-template-columns: repeat(6, 1fr); }
 }
+
+.buy-now-btn {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: #141414;
+  border: none;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 7px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.15s;
+  text-align: center;
+  width: 100%;
+}
+.buy-now-btn:hover {
+  background: var(--gold-dark);
+  color: #fff;
+}

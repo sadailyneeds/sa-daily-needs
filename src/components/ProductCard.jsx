@@ -1,13 +1,19 @@
 // src/components/ProductCard.jsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import "../styles/productCard.css";
 
 export default function ProductCard({ product, cartQty = 0, onAdd, onIncrease, onDecrease }) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [imgLoaded, setImgLoaded] = useState(false);
   const discount =
     product.mrp && product.price ? Math.round(100 - (product.price / product.mrp) * 100) : 0;
+
+  const handleBuyNow = () => {
+    navigate("/checkout", { state: { buyNowProduct: { ...product, qty: 1 } } });
+  };
 
   return (
     <div className="product-card">
@@ -32,17 +38,22 @@ export default function ProductCard({ product, cartQty = 0, onAdd, onIncrease, o
           {product.mrp > product.price && <span className="mrp">₹{product.mrp}</span>}
         </div>
 
-        {cartQty === 0 ? (
-          <button className="add-btn" onClick={() => onAdd(product)}>
-            {t("add")}
+        <div className="product-actions" style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "auto" }}>
+          {cartQty === 0 ? (
+            <button className="add-btn" onClick={() => onAdd(product)} style={{ marginTop: 0 }}>
+              {t("add")}
+            </button>
+          ) : (
+            <div className="qty-control" style={{ marginTop: 0 }}>
+              <button onClick={() => onDecrease(product)}>−</button>
+              <span>{cartQty}</span>
+              <button onClick={() => onIncrease(product)}>+</button>
+            </div>
+          )}
+          <button className="buy-now-btn" onClick={handleBuyNow}>
+            ⚡ {t("buyNow")}
           </button>
-        ) : (
-          <div className="qty-control">
-            <button onClick={() => onDecrease(product)}>−</button>
-            <span>{cartQty}</span>
-            <button onClick={() => onIncrease(product)}>+</button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

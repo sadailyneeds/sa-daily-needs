@@ -34,6 +34,7 @@ export const translations = {
 
     // Product card
     add: "சேர்",
+    buyNow: "உடனே வாங்கு",
     off: "OFF",
 
     // Checkout
@@ -82,6 +83,7 @@ export const translations = {
 
     // Product card
     add: "ADD",
+    buyNow: "Buy Now",
     off: "OFF",
 
     // Checkout

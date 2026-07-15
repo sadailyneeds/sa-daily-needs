@@ -32,7 +32,13 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid &&
+        (resource.data.status == "pending" || resource.data.status == "placed" || resource.data.status == "confirmed") &&
+        request.resource.data.status == "cancelled"
+      );
       allow delete: if isAdmin();
     }
 
@@ -40,6 +46,13 @@ service cloud.firestore {
     match /notifications/{notifId} {
       allow create: if isSignedIn();
       allow read, update, delete: if isAdmin();
+    }
+
+    // Customer notifications: customers can read/create their own; admin can manage.
+    match /customer_notifications/{notifId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
 
     // Categories: public read, admin write
