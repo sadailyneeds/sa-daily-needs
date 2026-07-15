@@ -1,0 +1,39 @@
+.profile-page { max-width: 600px; margin: 0 auto; padding: 18px 16px 90px; }
+.profile-card {
+  background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 14px;
+}
+.profile-avatar {
+  width: 50px; height: 50px; border-radius: 50%; background: #f3f8f1;
+  display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+}
+.profile-name { font-weight: 800; font-size: 16px; margin: 0; }
+.profile-phone { color: #777; font-size: 13px; margin: 2px 0 0; }
+.logout-btn {
+  margin-left: auto; background: #fdeaea; color: #d32f2f; border: none;
+  padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 12.5px; cursor: pointer;
+}
+.orders-heading { font-size: 16px; margin: 0 0 12px; }
+.orders-list { display: flex; flex-direction: column; gap: 10px; }
+.order-card { background: #fff; border-radius: 10px; padding: 14px 16px; }
+.order-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.order-status { font-size: 13px; font-weight: 700; color: #3f7d32; }
+.order-amount { font-weight: 800; font-size: 14px; }
+.order-items { font-size: 12.5px; color: #555; margin: 4px 0; }
+.order-meta { font-size: 11.5px; color: #999; margin: 0; }
+
+/* Cart page */
+.cart-page { max-width: 700px; margin: 0 auto; padding: 18px 16px 90px; }
+.cart-page h1 { font-size: 20px; margin-bottom: 14px; }
+.cart-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.cart-item { background: #fff; border-radius: 10px; padding: 10px; display: flex; align-items: center; gap: 12px; }
+.cart-item-img { width: 56px; height: 56px; object-fit: contain; background: #fafafa; border-radius: 8px; }
+.cart-item-info { flex: 1; }
+.cart-item-name { font-weight: 700; font-size: 13.5px; margin: 0; }
+.cart-item-unit { font-size: 11.5px; color: #888; margin: 2px 0; }
+.cart-item-price { font-size: 12.5px; color: #333; margin: 0; }
+.cart-summary { background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+.checkout-btn, .continue-shopping-btn {
+  width: 100%; background: linear-gradient(135deg, #c9a227, #a5821a); color: #141414;
+  border: none; padding: 15px; border-radius: 10px; font-weight: 800; font-size: 15px; cursor: pointer;
+}

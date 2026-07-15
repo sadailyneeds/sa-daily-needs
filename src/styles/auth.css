@@ -1,0 +1,95 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fff4e6, #ffe8d6);
+  padding: 16px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+.auth-logo {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  color: #ff6b00;
+  margin: 0;
+}
+.auth-subtitle {
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+  margin: 4px 0 24px;
+}
+.auth-form { display: flex; flex-direction: column; gap: 6px; }
+.auth-form label { font-size: 13px; font-weight: 600; color: #333; margin-top: 10px; }
+.auth-form input {
+  padding: 12px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+  transition: border 0.2s;
+}
+.auth-form input:focus { border-color: #ff6b00; }
+.phone-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.phone-input span { padding: 0 12px; color: #666; font-weight: 600; background: #f6f6f6; align-self: stretch; display: flex; align-items: center; }
+.phone-input input { border: none; flex: 1; }
+.btn-primary {
+  margin-top: 18px;
+  background: #ff6b00;
+  color: #fff;
+  border: none;
+  padding: 13px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+}
+.btn-primary:hover { background: #e65f00; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { background: #ffbb88; cursor: not-allowed; }
+.btn-link {
+  background: none; border: none; color: #ff6b00; font-size: 13px;
+  margin-top: 8px; cursor: pointer; text-decoration: underline;
+}
+.auth-error { color: #d32f2f; font-size: 13px; margin: 4px 0 0; }
+
+/* Login/Register tabs */
+.auth-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 16px 0 4px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  padding: 4px;
+}
+.auth-tab {
+  flex: 1;
+  padding: 9px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #777;
+  cursor: pointer;
+}
+.auth-tab.active {
+  background: #fff;
+  color: var(--gold-dark, #a5821a);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}

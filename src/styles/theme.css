@@ -1,0 +1,41 @@
+:root {
+  --gold: #c9a227;
+  --gold-dark: #a5821a;
+  --green: #3f7d32;
+  --green-dark: #2e5c25;
+  --black: #141414;
+  --bg: #faf9f6;
+  --card-bg: #ffffff;
+  --text-dark: #1a1a1a;
+  --text-muted: #777;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-dark);
+  font-family: "Segoe UI", Roboto, "Poppins", sans-serif;
+}
+
+/* Buttons now use brand gold/green instead of generic orange */
+.btn-primary {
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  color: #1a1a1a;
+}
+.btn-primary:hover { background: var(--gold-dark); color: #fff; }
+
+.add-btn {
+  border-color: var(--green) !important;
+  color: var(--green) !important;
+}
+.add-btn:hover { background: var(--green) !important; color: #fff !important; }
+
+.qty-control { background: var(--green) !important; }
+
+.discount-badge { background: var(--green-dark); }
+
+.auth-logo { color: var(--gold-dark) !important; }
+.auth-page { background: linear-gradient(135deg, #fdf6e3, #f3ead0) !important; }
+.phone-input span { color: var(--green-dark); font-weight: 700; }
