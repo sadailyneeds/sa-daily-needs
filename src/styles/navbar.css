@@ -35,6 +35,39 @@
 
 .navbar-actions { display: flex; align-items: center; gap: 14px; }
 
+/* Desktop-only search bar + categories quick-link. Hidden on mobile so the
+   mobile header stays clean: Logo / Cart / Profile / Language. */
+.navbar-search-desktop {
+  display: none;
+  flex: 1;
+  max-width: 420px;
+  margin: 0 20px;
+}
+.navbar-search-desktop input {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 20px 0 0 20px;
+  border: none;
+  font-size: 13.5px;
+  outline: none;
+}
+.navbar-search-desktop button {
+  border: none;
+  background: var(--gold, #c9a227);
+  color: #141414;
+  padding: 0 14px;
+  border-radius: 0 20px 20px 0;
+  cursor: pointer;
+  font-size: 14px;
+}
+.navbar-categories-link { display: none; }
+
+@media (min-width: 900px) {
+  .navbar { padding: 10px 32px; }
+  .navbar-search-desktop { display: flex; }
+  .navbar-categories-link { display: inline-block; }
+}
+
 .navbar-link {
   color: #e9c85c;
   text-decoration: none;
@@ -84,6 +117,11 @@
   .navbar-tagline { display: none; }
   .navbar-title { font-size: 15px; }
   .navbar-logo { width: 34px; height: 34px; }
+  .navbar-actions { gap: 8px; }
+  .navbar-profile, .navbar-login { padding: 6px 10px; font-size: 12px; }
+  .navbar-profile { max-width: 78px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lang-btn { padding: 6px 8px; font-size: 11px; }
+  .admin-link { padding: 6px 8px; font-size: 12px; }
 }
 
 /* Language switcher */

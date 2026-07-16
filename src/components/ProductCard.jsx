@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
+import { handleImgError } from "../utils/imagePlaceholder";
 import "../styles/productCard.css";
 
 export default function ProductCard({ product, cartQty = 0, onAdd, onIncrease, onDecrease }) {
@@ -23,8 +24,14 @@ export default function ProductCard({ product, cartQty = 0, onAdd, onIncrease, o
           src={product.imageUrl}
           alt={product.name}
           className="product-image"
+          loading="lazy"
+          decoding="async"
           style={{ display: imgLoaded ? "block" : "none" }}
           onLoad={() => setImgLoaded(true)}
+          onError={(e) => {
+            handleImgError(e);
+            setImgLoaded(true);
+          }}
         />
         {discount > 0 && <span className="discount-badge">{discount}% {t("off")}</span>}
       </div>

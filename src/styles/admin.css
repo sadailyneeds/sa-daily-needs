@@ -58,6 +58,28 @@
 .admin-table th { text-align: left; padding: 10px; color: #666; border-bottom: 2px solid #f0f0f0; }
 .admin-table td { padding: 10px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
 .admin-thumb { width: 44px; height: 44px; object-fit: contain; background: #fafafa; border-radius: 8px; }
+
+.admin-notif-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #d32f2f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  animation: notifPulse 1.2s infinite;
+}
+@keyframes notifPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
 .in-stock { color: #2e7d32; font-weight: 600; }
 .out-stock { color: #d32f2f; font-weight: 600; }
 .action-cell { display: flex; gap: 8px; }

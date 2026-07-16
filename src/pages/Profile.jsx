@@ -1,8 +1,11 @@
 // src/pages/Profile.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { collection, onSnapshot, orderBy, query, where, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
+import { LANGUAGES } from "../i18n/translations";
 import "../styles/profile.css";
 
 const STATUS_LABELS = {
@@ -15,10 +18,33 @@ const STATUS_LABELS = {
   cancelled: "❌ Cancelled / ரத்து செய்யப்பட்டது",
 };
 
+// Order timeline steps (cancelled orders get their own separate row)
+const TIMELINE_STEPS = [
+  { key: "pending", label: "Pending", icon: "⏳" },
+  { key: "confirmed", label: "Confirmed", icon: "✅" },
+  { key: "picked_up", label: "Picked Up", icon: "📦" },
+  { key: "out_for_delivery", label: "Out for Delivery", icon: "🚴" },
+  { key: "delivered", label: "Delivered", icon: "🎉" },
+];
+
 export default function Profile() {
   const { user, profile, logout } = useAuth();
+  const { lang, setLang, t } = useLanguage();
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const fileInputRef = useRef(null);
+
+  // Edit Profile modal state
+  const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editHouseNo, setEditHouseNo] = useState("");
+  const [editStreet, setEditStreet] = useState("");
+  const [editArea, setEditArea] = useState("");
+  const [editLandmark, setEditLandmark] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editPincode, setEditPincode] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Fetch user orders
   useEffect(() => {
@@ -48,6 +74,71 @@ export default function Profile() {
     return unsub;
   }, [user]);
 
+  const openEditModal = () => {
+    setEditName(profile?.name || "");
+    const addr = profile?.savedAddress || {};
+    setEditHouseNo(addr.houseNo || "");
+    setEditStreet(addr.street || "");
+    setEditArea(addr.area || "");
+    setEditLandmark(addr.landmark || "");
+    setEditCity(addr.city || "");
+    setEditPincode(addr.pincode || "");
+    setShowEdit(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) return alert("Name தேவை / Name is required.");
+    setSavingProfile(true);
+    try {
+      const userRef = doc(db, "users", user.uid);
+      const updates = { name: editName.trim() };
+      // Only overwrite saved address if there was already one on file,
+      // or the customer has started filling it in here - keeps first-order
+      // flow (Checkout page) as the primary place a fresh address gets created.
+      if (profile?.savedAddress || editHouseNo || editStreet || editArea || editCity || editPincode) {
+        updates.savedAddress = {
+          ...(profile?.savedAddress || {}),
+          name: editName.trim(),
+          phone: profile?.phone || "",
+          houseNo: editHouseNo.trim(),
+          street: editStreet.trim(),
+          area: editArea.trim(),
+          landmark: editLandmark.trim(),
+          city: editCity.trim(),
+          pincode: editPincode.trim(),
+        };
+      }
+      await updateDoc(userRef, updates);
+      setShowEdit(false);
+    } catch (err) {
+      console.error(err);
+      alert("Profile update பண்ண முடியல. மறுபடியும் try பண்ணுங்க.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (!file.type.startsWith("image/")) return alert("Please choose an image file.");
+    if (file.size > 5 * 1024 * 1024) return alert("Image should be under 5MB.");
+
+    setUploadingPhoto(true);
+    try {
+      const photoRef = ref(storage, `users/${user.uid}/avatar_${Date.now()}`);
+      await uploadBytes(photoRef, file);
+      const url = await getDownloadURL(photoRef);
+      await updateDoc(doc(db, "users", user.uid), { photoURL: url });
+    } catch (err) {
+      console.error(err);
+      alert("Photo upload பண்ண முடியல. மறுபடியும் try பண்ணுங்க.");
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleCancelOrder = async (order) => {
     if (window.confirm("இந்த ஆர்டரை ரத்து செய்ய விரும்புகிறீர்களா?\nAre you sure you want to cancel this order?")) {
       try {
@@ -76,13 +167,70 @@ export default function Profile() {
   return (
     <div className="profile-page">
       <div className="profile-card">
-        <div className="profile-avatar">👤</div>
-        <div>
-          <p className="profile-name">{profile?.name || "Customer"}</p>
-          <p className="profile-phone">{user?.phoneNumber}</p>
+        <div className="profile-avatar-wrap">
+          {profile?.photoURL ? (
+            <img src={profile.photoURL} alt="Profile" className="profile-avatar-img" />
+          ) : (
+            <div className="profile-avatar">👤</div>
+          )}
+          <button
+            className="profile-photo-edit-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingPhoto}
+            title={t("changePhoto")}
+          >
+            {uploadingPhoto ? "…" : "📷"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handlePhotoChange}
+          />
         </div>
-        <button className="logout-btn" onClick={logout}>Logout</button>
+        <div style={{ flex: 1 }}>
+          <p className="profile-name">{profile?.name || "Customer"}</p>
+          <p className="profile-phone">{profile?.phone || user?.phoneNumber}</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <button className="edit-profile-btn" onClick={openEditModal}>✏️ {t("editProfile")}</button>
+          <button className="logout-btn" onClick={logout}>Logout</button>
+        </div>
       </div>
+
+      {/* Language switcher - lives inside Profile per app requirements */}
+      <div className="profile-lang-section">
+        <span className="profile-lang-label">🌐 {t("language")}</span>
+        <div className="profile-lang-options">
+          {LANGUAGES.map((l) => (
+            <button
+              key={l.code}
+              className={`profile-lang-btn ${lang === l.code ? "active" : ""}`}
+              onClick={() => setLang(l.code)}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Saved address quick view */}
+      {profile?.savedAddress && (
+        <div className="profile-address-card">
+          <h3 style={{ margin: "0 0 6px", fontSize: "13.5px", color: "#555" }}>📍 {t("myAddress")}</h3>
+          <p style={{ margin: 0, fontSize: "13px", color: "#333", lineHeight: 1.5 }}>
+            {[
+              profile.savedAddress.houseNo,
+              profile.savedAddress.street,
+              profile.savedAddress.area,
+              profile.savedAddress.landmark ? `Near ${profile.savedAddress.landmark}` : "",
+              profile.savedAddress.city,
+              profile.savedAddress.pincode,
+            ].filter(Boolean).join(", ")}
+          </p>
+        </div>
+      )}
 
       {/* Customer In-App Notifications Panel */}
       {notifications.length > 0 && (
@@ -124,6 +272,9 @@ export default function Profile() {
         <div className="orders-list">
           {orders.map((order) => {
             const canCancel = order.status === "pending" || order.status === "placed" || order.status === "confirmed";
+            const isCancelled = order.status === "cancelled";
+            const normalizedStatus = order.status === "placed" ? "pending" : order.status;
+            const currentStepIndex = TIMELINE_STEPS.findIndex((s) => s.key === normalizedStatus);
 
             return (
               <div key={order.id} className="order-card" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
@@ -136,6 +287,23 @@ export default function Profile() {
                 <p className="order-items">
                   {order.items?.map((i) => `${i.name} x${i.qty}`).join(", ")}
                 </p>
+
+                {/* Order status timeline */}
+                {!isCancelled && currentStepIndex >= 0 && (
+                  <div className="order-timeline">
+                    {TIMELINE_STEPS.map((step, idx) => (
+                      <div
+                        key={step.key}
+                        className={`order-timeline-step ${idx <= currentStepIndex ? "done" : ""} ${idx === currentStepIndex ? "current" : ""}`}
+                      >
+                        <span className="order-timeline-dot">{idx <= currentStepIndex ? step.icon : ""}</span>
+                        <span className="order-timeline-label">{step.label}</span>
+                        {idx < TIMELINE_STEPS.length - 1 && <span className="order-timeline-line" />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "10px" }}>
                   <p className="order-meta">
                     {order.paymentMethod === "cod" ? "💵 Cash on Delivery" : "💳 Paid Online"} ·{" "}
@@ -143,7 +311,7 @@ export default function Profile() {
                       ? order.createdAt.toDate().toLocaleDateString("en-IN")
                       : ""}
                   </p>
-                  
+
                   {/* Customer Cancel Order Button */}
                   {canCancel && (
                     <button
@@ -175,6 +343,45 @@ export default function Profile() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Edit Profile Modal */}
+      {showEdit && (
+        <div className="modal-backdrop" onClick={() => !savingProfile && setShowEdit(false)}>
+          <div className="modal-content profile-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginTop: 0 }}>✏️ {t("editProfile")}</h2>
+
+            <label className="edit-field-label">Name *</label>
+            <input className="edit-field-input" value={editName} onChange={(e) => setEditName(e.target.value)} />
+
+            <label className="edit-field-label">House / Door Number</label>
+            <input className="edit-field-input" value={editHouseNo} onChange={(e) => setEditHouseNo(e.target.value)} />
+
+            <label className="edit-field-label">Street</label>
+            <input className="edit-field-input" value={editStreet} onChange={(e) => setEditStreet(e.target.value)} />
+
+            <label className="edit-field-label">Area</label>
+            <input className="edit-field-input" value={editArea} onChange={(e) => setEditArea(e.target.value)} />
+
+            <label className="edit-field-label">Landmark</label>
+            <input className="edit-field-input" value={editLandmark} onChange={(e) => setEditLandmark(e.target.value)} />
+
+            <label className="edit-field-label">City</label>
+            <input className="edit-field-input" value={editCity} onChange={(e) => setEditCity(e.target.value)} />
+
+            <label className="edit-field-label">Pincode</label>
+            <input className="edit-field-input" maxLength={6} value={editPincode} onChange={(e) => setEditPincode(e.target.value.replace(/\D/g, ""))} />
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+              <button className="modal-cancel-btn" onClick={() => setShowEdit(false)} disabled={savingProfile}>
+                {t("cancel")}
+              </button>
+              <button className="place-order-btn" onClick={handleSaveProfile} disabled={savingProfile} style={{ flex: 1 }}>
+                {savingProfile ? "Saving..." : t("save")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

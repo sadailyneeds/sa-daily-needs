@@ -1,5 +1,100 @@
 .home-page { padding: 14px 16px 80px; max-width: 1300px; margin: 0 auto; }
 
+/* Desktop hero banner - centered logo + big banner + Shop Now.
+   Hidden on mobile: mobile keeps the compact search+category flow. */
+.hero-banner {
+  display: none;
+}
+.hero-banner-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 46px 20px;
+}
+.hero-logo {
+  width: 110px;
+  height: 110px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #000;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+}
+.hero-title {
+  font-size: 34px;
+  font-weight: 900;
+  margin: 6px 0 0;
+  background: linear-gradient(135deg, #e9c85c, #c9a227);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-tagline { font-size: 15px; color: var(--green, #3f7d32); margin: 0 0 10px; font-weight: 600; }
+.hero-shop-btn {
+  background: linear-gradient(135deg, var(--gold, #c9a227), var(--gold-dark, #a5821a));
+  color: #141414;
+  border: none;
+  padding: 13px 32px;
+  border-radius: 30px;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(201,162,39,0.35);
+  transition: transform 0.15s;
+}
+.hero-shop-btn:hover { transform: translateY(-2px); }
+
+@media (min-width: 900px) {
+  .hero-banner {
+    display: block;
+    background: linear-gradient(135deg, #141414, #232323);
+    border-radius: 18px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+}
+
+/* Fixed category icon grid (Rice, Oil, Dal, Atta, Masala, Snacks...) */
+.category-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (min-width: 600px) { .category-icon-grid { grid-template-columns: repeat(6, 1fr); } }
+@media (min-width: 900px) { .category-icon-grid { grid-template-columns: repeat(8, 1fr); } }
+.category-icon-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 10px 4px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.category-icon-chip:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); transform: translateY(-1px); }
+.category-icon-chip.active { background: var(--green, #3f7d32); border-color: var(--green, #3f7d32); }
+.category-icon-chip.active .category-icon-label { color: #fff; }
+.category-icon-emoji { font-size: 22px; }
+.category-icon-label { font-size: 10.5px; font-weight: 700; color: #444; text-align: center; line-height: 1.2; }
+
+/* Horizontal-scroll promo rows: Offers / Popular / New */
+.promo-row { margin-bottom: 22px; }
+.promo-row-title { font-size: 16px; font-weight: 800; margin: 0 0 10px; color: #222; }
+.promo-row-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+.promo-row-scroll::-webkit-scrollbar { display: none; }
+.promo-row-item { flex: 0 0 150px; }
+@media (min-width: 600px) { .promo-row-item { flex-basis: 180px; } }
+
 .search-bar { margin-bottom: 14px; }
 .search-bar input {
   width: 100%;

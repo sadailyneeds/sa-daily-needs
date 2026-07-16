@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, onSnapshot, deleteDoc, doc, query, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { handleImgError } from "../utils/imagePlaceholder";
 import "../styles/admin.css";
 
 const STATUS_ORDER = {
@@ -35,8 +36,15 @@ export default function AdminDashboard() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   
-  // Dashboard Tabs: "overview" | "orders" | "products"
+  // Dashboard Tabs: "overview" | "orders" | "products" | "analytics"
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Unread order-notification count, used for the navbar/tab badge and to
+  // keep the alert ringing until the admin actually opens the Notifications page.
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+  // Analytics range: "daily" | "weekly" | "monthly" | "yearly"
+  const [analyticsRange, setAnalyticsRange] = useState("daily");
 
   // Synthesize notification beep (no external file needed)
   const playBeep = () => {
@@ -57,6 +65,14 @@ export default function AdminDashboard() {
       oscillator.stop(audioCtx.currentTime + 0.4);
     } catch (e) {
       console.error("Audio Context beep error:", e);
+    }
+  };
+
+  const vibrateDevice = () => {
+    try {
+      if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]);
+    } catch (e) {
+      // Vibration API not supported on this device/browser - safe to ignore.
     }
   };
 
@@ -91,6 +107,7 @@ export default function AdminDashboard() {
         );
         if (hasNewOrder) {
           playBeep();
+          vibrateDevice();
           const docChanges = snap.docChanges().filter(c => c.type === "added");
           if (docChanges.length > 0) {
             const newOrder = docChanges[0].doc.data();
@@ -111,6 +128,28 @@ export default function AdminDashboard() {
       unsubU();
     };
   }, []);
+
+  // Live badge count of unread order notifications - updates instantly via
+  // Firebase realtime listener (no polling / refresh needed).
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "notifications"), (snap) => {
+      const unread = snap.docs.filter((d) => !d.data().read).length;
+      setUnreadNotifCount(unread);
+    });
+    return unsub;
+  }, []);
+
+  // Keep the alert sound + vibration repeating on mobile/desktop while there
+  // are unread notifications, so an admin can't miss a new order. Stops the
+  // instant the admin opens the Notifications page (they get marked read there).
+  useEffect(() => {
+    if (unreadNotifCount === 0) return;
+    const ringInterval = setInterval(() => {
+      playBeep();
+      vibrateDevice();
+    }, 6000);
+    return () => clearInterval(ringInterval);
+  }, [unreadNotifCount]);
 
   // Update order status in workflow
   const handleUpdateStatus = async (order, nextStatus) => {
@@ -178,6 +217,21 @@ export default function AdminDashboard() {
       .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   };
 
+  const getTodayOrders = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return orders.filter((o) => {
+      const orderDate = o.createdAt?.toDate ? o.createdAt.toDate() : new Date();
+      return orderDate >= today;
+    });
+  };
+
+  const getTodayCustomersCount = () => {
+    const todayOrders = getTodayOrders();
+    const uniqueCustomers = new Set(todayOrders.map((o) => o.userId || o.customerPhone));
+    return uniqueCustomers.size;
+  };
+
   const getMonthlyRevenue = () => {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -215,6 +269,37 @@ export default function AdminDashboard() {
       return timeB - timeA; // Recent first
     });
 
+  // Orders inside the selected Analytics range (Daily/Weekly/Monthly/Yearly)
+  const getAnalyticsOrders = () => {
+    const now = new Date();
+    const rangeStart = new Date();
+    if (analyticsRange === "daily") {
+      rangeStart.setHours(0, 0, 0, 0);
+    } else if (analyticsRange === "weekly") {
+      rangeStart.setDate(now.getDate() - 7);
+    } else if (analyticsRange === "monthly") {
+      rangeStart.setDate(1);
+      rangeStart.setHours(0, 0, 0, 0);
+    } else if (analyticsRange === "yearly") {
+      rangeStart.setMonth(0, 1);
+      rangeStart.setHours(0, 0, 0, 0);
+    }
+    return orders
+      .filter((o) => {
+        const orderDate = o.createdAt?.toDate ? o.createdAt.toDate() : new Date();
+        return orderDate >= rangeStart;
+      })
+      .sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return timeB - timeA;
+      });
+  };
+  const analyticsOrders = getAnalyticsOrders();
+  const analyticsTotalRevenue = analyticsOrders
+    .filter((o) => o.status !== "cancelled")
+    .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
   const tabStyle = (tab) => ({
     padding: "10px 20px",
     borderRadius: "8px",
@@ -232,7 +317,12 @@ export default function AdminDashboard() {
       <div className="admin-header">
         <h1>Store Owner Dashboard</h1>
         <div className="admin-header-actions">
-          <Link to="/admin/notifications" className="btn-outline">🔔 Notifications</Link>
+          <Link to="/admin/notifications" className="btn-outline" style={{ position: "relative" }}>
+            🔔 Notifications
+            {unreadNotifCount > 0 && (
+              <span className="admin-notif-badge">{unreadNotifCount}</span>
+            )}
+          </Link>
           <Link to="/admin/add-product" className="btn-primary-admin">+ Add Product</Link>
         </div>
       </div>
@@ -242,6 +332,7 @@ export default function AdminDashboard() {
         <button style={tabStyle("overview")} onClick={() => setActiveTab("overview")}>📊 Overview</button>
         <button style={tabStyle("orders")} onClick={() => setActiveTab("orders")}>🛒 Orders Manager ({orders.length})</button>
         <button style={tabStyle("products")} onClick={() => setActiveTab("products")}>📦 Products Manager ({products.length})</button>
+        <button style={tabStyle("analytics")} onClick={() => setActiveTab("analytics")}>📈 Analytics</button>
       </div>
 
       {/* Tab Content 1: Overview */}
@@ -264,6 +355,14 @@ export default function AdminDashboard() {
             <div className="stat-card revenue">
               <span className="stat-label">Today's Revenue</span>
               <span className="stat-value">₹{getTodayRevenue().toLocaleString("en-IN")}</span>
+            </div>
+            <div className="stat-card gold">
+              <span className="stat-label">Today's Orders</span>
+              <span className="stat-value">{getTodayOrders().length}</span>
+            </div>
+            <div className="stat-card green">
+              <span className="stat-label">Today's Customers</span>
+              <span className="stat-value">{getTodayCustomersCount()}</span>
             </div>
           </div>
 
@@ -602,7 +701,7 @@ export default function AdminDashboard() {
               <tbody>
                 {filteredProducts.map((p) => (
                   <tr key={p.id}>
-                    <td><img src={p.imageUrl} alt={p.name} className="admin-thumb" /></td>
+                    <td><img src={p.imageUrl} alt={p.name} className="admin-thumb" loading="lazy" onError={handleImgError} /></td>
                     <td>{p.name}</td>
                     <td>{p.category}</td>
                     <td>₹{p.price}</td>
@@ -619,6 +718,72 @@ export default function AdminDashboard() {
               </tbody>
             </table>
             {filteredProducts.length === 0 && <p className="no-results">No products found</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Tab Content 4: Analytics */}
+      {activeTab === "analytics" && (
+        <div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+            {["daily", "weekly", "monthly", "yearly"].map((range) => (
+              <button
+                key={range}
+                onClick={() => setAnalyticsRange(range)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  border: analyticsRange === range ? "none" : "1px solid #ddd",
+                  background: analyticsRange === range ? "var(--green)" : "#fff",
+                  color: analyticsRange === range ? "#fff" : "#555",
+                  fontWeight: "700",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  textTransform: "capitalize",
+                }}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+
+          <div className="stats-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", marginBottom: "18px" }}>
+            <div className="stat-card gold">
+              <span className="stat-label">Orders ({analyticsRange})</span>
+              <span className="stat-value">{analyticsOrders.length}</span>
+            </div>
+            <div className="stat-card revenue">
+              <span className="stat-label">Revenue ({analyticsRange})</span>
+              <span className="stat-value">₹{analyticsTotalRevenue.toLocaleString("en-IN")}</span>
+            </div>
+          </div>
+
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Phone</th>
+                  <th>Items</th>
+                  <th>Price</th>
+                  <th>Payment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analyticsOrders.map((o) => (
+                  <tr key={o.id}>
+                    <td>{o.createdAt?.toDate ? o.createdAt.toDate().toLocaleString("en-IN") : "-"}</td>
+                    <td>{o.customerName}</td>
+                    <td>{o.customerPhone}</td>
+                    <td>{o.items?.map((i) => `${i.name} x${i.qty}`).join(", ")}</td>
+                    <td>₹{o.totalAmount}</td>
+                    <td>{o.paymentMethod === "cod" ? "COD" : "Online"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {analyticsOrders.length === 0 && <p className="no-results">No orders in this range</p>}
           </div>
         </div>
       )}

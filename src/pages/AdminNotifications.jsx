@@ -1,6 +1,6 @@
 // src/pages/AdminNotifications.jsx
 import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, orderBy, query, updateDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, orderBy, query, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../firebase/config";
 import "../styles/admin.css";
 
@@ -18,10 +18,30 @@ export default function AdminNotifications() {
       );
       if (hasUnread) {
         new Audio("/notification.mp3").play().catch(() => {});
+        if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
       }
     });
     return unsub;
   }, []);
+
+  // Opening this page is treated as "the admin has seen the alert" - mark
+  // every notification as read so the repeating ring/vibrate on the
+  // dashboard stops immediately.
+  useEffect(() => {
+    if (notifications.length === 0) return;
+    const unread = notifications.filter((n) => !n.read);
+    if (unread.length === 0) return;
+    (async () => {
+      try {
+        const batch = writeBatch(db);
+        unread.forEach((n) => batch.update(doc(db, "notifications", n.id), { read: true }));
+        await batch.commit();
+      } catch (err) {
+        console.error("Failed to mark notifications read:", err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications.length]);
 
   const markAsRead = async (id) => {
     await updateDoc(doc(db, "notifications", id), { read: true });

@@ -1,9 +1,10 @@
 // src/pages/Cart.jsx
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
+import { handleImgError } from "../utils/imagePlaceholder";
 import "../styles/profile.css";
 
-const DELIVERY_CHARGE = 20;
+const DELIVERY_CHARGE = 10;
 
 export default function Cart({ cart, increaseQty, decreaseQty }) {
   const { t } = useLanguage();
@@ -33,7 +34,14 @@ export default function Cart({ cart, increaseQty, decreaseQty }) {
       <div className="cart-items">
         {cart.map((item) => (
           <div key={item.id} className="cart-item">
-            <img src={item.imageUrl} alt={item.name} className="cart-item-img" />
+            <img
+              src={item.imageUrl}
+              alt={item.name}
+              className="cart-item-img"
+              loading="lazy"
+              decoding="async"
+              onError={handleImgError}
+            />
             <div className="cart-item-info">
               <p className="cart-item-name">{item.name}</p>
               <p className="cart-item-unit">{item.unit}</p>
