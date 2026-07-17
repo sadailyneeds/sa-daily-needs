@@ -51,13 +51,20 @@ export default function Profile() {
   useEffect(() => {
     if (!user) return;
     const q = query(
-      collection(db, "orders"),
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setOrders(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+  collection(db, "orders"),
+  where("userId", "==", user.uid)
+);
+
+const unsub = onSnapshot(
+  q,
+  (snap) => {
+    console.log("Orders:", snap.docs.length);
+    setOrders(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  },
+  (err) => {
+    console.error("Firestore Error:", err);
+  }
+);
     return unsub;
   }, [user]);
 
