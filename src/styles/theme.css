@@ -1,3 +1,7 @@
+/* ============================================================
+   src/styles/theme.css  — Global design tokens + mobile reset
+   ============================================================ */
+
 :root {
   --gold: #c9a227;
   --gold-dark: #a5821a;
@@ -11,20 +15,45 @@
   --radius: 12px;
 }
 
-* { box-sizing: border-box; }
+/* ── Global Mobile Reset ─────────────────────────────────── */
+html,
+body {
+  width: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text-dark);
-  font-family: "Segoe UI", Roboto, "Poppins", sans-serif;
+  font-family: "Poppins", "Segoe UI", Roboto, sans-serif;
 }
 
-/* Buttons now use brand gold/green instead of generic orange */
+/* ── Brand Buttons ───────────────────────────────────────── */
 .btn-primary {
   background: linear-gradient(135deg, var(--gold), var(--gold-dark));
   color: #1a1a1a;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.2s;
 }
-.btn-primary:hover { background: var(--gold-dark); color: #fff; }
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .add-btn {
   border-color: var(--green) !important;
@@ -33,14 +62,14 @@ body {
 .add-btn:hover { background: var(--green) !important; color: #fff !important; }
 
 .qty-control { background: var(--green) !important; }
-
 .discount-badge { background: var(--green-dark); }
 
+/* ── Auth page brand overrides ───────────────────────────── */
 .auth-logo { color: var(--gold-dark) !important; }
 .auth-page { background: linear-gradient(135deg, #fdf6e3, #f3ead0) !important; }
 .phone-input span { color: var(--green-dark); font-weight: 700; }
 
-/* Shared modal styles (Checkout location popup, Profile edit modal, etc.) */
+/* ── Shared Modal Styles ─────────────────────────────────── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -58,9 +87,9 @@ body {
   max-width: 380px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
   max-height: 90vh;
   overflow-y: auto;
 }
 .modal-content h2 { font-size: 18px; margin: 10px 0 8px; }
-.modal-content p { font-size: 13.5px; color: #666; margin: 0 0 16px; }
+.modal-content p  { font-size: 13.5px; color: #666; margin: 0 0 16px; }

@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import { handleImgError } from "../utils/imagePlaceholder";
+import { formatWeight, formatMoney } from "../utils/weightPricing";
 import "../styles/profile.css";
 
 const DELIVERY_CHARGE = 10;
@@ -33,7 +34,7 @@ export default function Cart({ cart, increaseQty, decreaseQty }) {
 
       <div className="cart-items">
         {cart.map((item) => (
-          <div key={item.id} className="cart-item">
+          <div key={item.weight ? `${item.id}-${item.weight}` : item.id} className="cart-item">
             <img
               src={item.imageUrl}
               alt={item.name}
@@ -44,8 +45,12 @@ export default function Cart({ cart, increaseQty, decreaseQty }) {
             />
             <div className="cart-item-info">
               <p className="cart-item-name">{item.name}</p>
-              <p className="cart-item-unit">{item.unit}</p>
-              <p className="cart-item-price">₹{item.price} x {item.qty} = ₹{item.price * item.qty}</p>
+              {item.weight ? (
+                <p className="cart-item-unit">Weight: {formatWeight(item.weight)}</p>
+              ) : (
+                <p className="cart-item-unit">{item.unit}</p>
+              )}
+              <p className="cart-item-price">₹{formatMoney(item.price)} x {item.qty} = ₹{formatMoney(item.price * item.qty)}</p>
             </div>
             <div className="qty-control">
               <button onClick={() => decreaseQty(item)}>−</button>
@@ -59,7 +64,7 @@ export default function Cart({ cart, increaseQty, decreaseQty }) {
       <div className="cart-summary">
         <div className="summary-row">
           <span>Items Total</span>
-          <span>₹{itemsTotal}</span>
+          <span>₹{formatMoney(itemsTotal)}</span>
         </div>
         <div className="summary-row">
           <span>{t("deliveryCharge")}</span>
@@ -67,12 +72,12 @@ export default function Cart({ cart, increaseQty, decreaseQty }) {
         </div>
         <div className="summary-row total">
           <span>{t("total")}</span>
-          <span>₹{totalAmount}</span>
+          <span>₹{formatMoney(totalAmount)}</span>
         </div>
       </div>
 
       <button className="checkout-btn" onClick={() => navigate("/checkout")}>
-        {t("checkout")} · ₹{totalAmount}
+        {t("checkout")} · ₹{formatMoney(totalAmount)}
       </button>
     </div>
   );

@@ -69,6 +69,7 @@ export default function Home({ cart, addToCart, increaseQty, decreaseQty }) {
       <ProductCard
         key={product.id}
         product={product}
+        cart={cart}
         cartQty={cartItem?.qty || 0}
         onAdd={addToCart}
         onIncrease={increaseQty}

@@ -64,6 +64,29 @@
   min-height: 34px;
 }
 .product-unit { font-size: 12px; color: #888; margin: 0; }
+
+/* Flexible weight selector — loose products only (Rice, Dal, Sugar, etc.) */
+.weight-selector { display: flex; flex-direction: column; gap: 4px; margin: 2px 0; }
+.weight-selector select {
+  font-size: 12px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-family: inherit;
+  width: 100%;
+}
+.custom-weight-row { display: flex; align-items: center; gap: 4px; }
+.custom-weight-row input {
+  font-size: 12px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  width: 100%;
+  font-family: inherit;
+}
+.custom-weight-hint { font-size: 11px; color: #888; }
+.weight-selected-label { font-size: 11.5px; color: #3f7d32; font-weight: 700; margin: 0; }
+
 .price-row { display: flex; align-items: baseline; gap: 6px; margin: 4px 0; }
 .price { font-weight: 700; font-size: 14px; color: #111; }
 .mrp { font-size: 12px; color: #999; text-decoration: line-through; }

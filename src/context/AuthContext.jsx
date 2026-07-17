@@ -7,6 +7,8 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  browserLocalPersistence,
+  setPersistence,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
@@ -23,11 +25,23 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Explicitly set persistence to LOCAL so the auth session survives
+    // app restarts in the Android WebView. Without this, Capacitor's
+    // sandboxed environment may drop the session between launches.
+    setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.warn("Auth persistence error (non-fatal):", err.message);
+    });
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-        setProfile(snap.exists() ? snap.data() : null);
+        try {
+          const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+          setProfile(snap.exists() ? snap.data() : null);
+        } catch (err) {
+          console.warn("Firestore profile fetch error:", err.message);
+          setProfile(null);
+        }
       } else {
         setProfile(null);
       }
@@ -65,7 +79,7 @@ export function AuthProvider({ children }) {
 
     const userRef = doc(db, "users", firebaseUser.uid);
     const snap = await getDoc(userRef);
-    const profileData = snap.data();
+    const profileData = snap.exists() ? snap.data() : null;
     setProfile(profileData);
     return { user: firebaseUser, profile: profileData };
   };

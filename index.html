@@ -2,14 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SA Store Daily Needs</title>
-    <!-- Razorpay Checkout SDK (for online payment) -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <link rel="icon" type="image/png" href="./favicon.png" />
+    <!-- Responsive viewport — no user scaling to keep mobile layout clean -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+
+    <!-- SEO -->
+    <title>SA Store Daily Needs — Fresh Groceries Delivered</title>
+    <meta name="description" content="SA Store Daily Needs — Shop fresh groceries, vegetables, fruits, dairy, spices and more. Fast home delivery at the best prices." />
+    <meta name="theme-color" content="#141414" />
+
+    <!-- Google Fonts — Poppins for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Razorpay Checkout SDK — async so it never blocks app startup.
+         window.Razorpay will be undefined if script fails; Checkout.jsx guards this. -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js" async defer></script>
+
+    <!-- Prevent FOUC flash on mobile -->
+    <style>
+      body { opacity: 0; transition: opacity 0.2s; }
+      body.ready { opacity: 1; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="./src/main.jsx"></script>
+    <script>
+      // Show body once React mounts to prevent FOUC
+      document.addEventListener('DOMContentLoaded', () => {
+        document.body.classList.add('ready');
+      });
+    </script>
   </body>
 </html>

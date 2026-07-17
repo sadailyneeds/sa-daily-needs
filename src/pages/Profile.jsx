@@ -6,6 +6,7 @@ import { db, storage } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { LANGUAGES } from "../i18n/translations";
+import { formatWeight } from "../utils/weightPricing";
 import "../styles/profile.css";
 
 const STATUS_LABELS = {
@@ -285,7 +286,7 @@ export default function Profile() {
                   <span className="order-amount">₹{order.totalAmount}</span>
                 </div>
                 <p className="order-items">
-                  {order.items?.map((i) => `${i.name} x${i.qty}`).join(", ")}
+                  {order.items?.map((i) => `${i.name}${i.weight ? ` (${formatWeight(i.weight)})` : ""} x${i.qty}`).join(", ")}
                 </p>
 
                 {/* Order status timeline */}

@@ -1,0 +1,21 @@
+{
+  "appId": "com.sadailyneeds.app",
+  "appName": "SA Daily Needs",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "hostname": "sadailyneeds.app",
+    "cleartext": false
+  },
+  "android": {
+    "backgroundColor": "#141414"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#141414",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
+}

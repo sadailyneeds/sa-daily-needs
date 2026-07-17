@@ -42,21 +42,37 @@ export default function AuthOtp() {
         mode === "register"
           ? await registerWithPhone(phone, password, name)
           : await loginWithPhone(phone, password);
-      navigate(result.profile?.role === "admin" ? "/admin" : "/");
+
+      // Use replace:true so the back button doesn't go back to login after auth
+      navigate(result.profile?.role === "admin" ? "/admin" : "/", { replace: true });
     } catch (err) {
-      console.error(err);
-      if (err.code === "auth/email-already-in-use") {
+      // Map Firebase error codes to user-friendly Tamil/English messages
+      const code = err.code || "";
+      if (code === "auth/email-already-in-use") {
         setError("இந்த phone number-ஓட account already இருக்கு. Login பண்ணுங்க.");
-      } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+      } else if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
         setError("Phone number அல்லது password தவறு.");
-      } else if (err.code === "auth/user-not-found") {
+      } else if (code === "auth/user-not-found") {
         setError("இந்த phone number-க்கு account இல்ல. Register பண்ணுங்க.");
+      } else if (code === "auth/network-request-failed") {
+        setError("Network error. Internet connection check பண்ணுங்க.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Too many attempts. சிறிது நேரம் கழித்து try பண்ணுங்க.");
+      } else if (code === "auth/weak-password") {
+        setError("Password மிகவும் weak. குறைந்தது 6 characters பயன்படுத்துங்க.");
       } else {
-        setError("ஏதோ தவறு நடந்துச்சு. மறுபடியும் try பண்ணுங்க.");
+        setError("ஏதோ தவறு நடந்துச்சு. மறுபடியும் try பண்ணுங்க. (" + code + ")");
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setError("");
+    setPassword("");
+    setConfirmPassword("");
   };
 
   return (
@@ -69,14 +85,14 @@ export default function AuthOtp() {
         <div className="auth-tabs">
           <button
             className={`auth-tab ${mode === "login" ? "active" : ""}`}
-            onClick={() => { setMode("login"); setError(""); setPassword(""); setConfirmPassword(""); }}
+            onClick={() => switchMode("login")}
             type="button"
           >
             உள்நுழைய
           </button>
           <button
             className={`auth-tab ${mode === "register" ? "active" : ""}`}
-            onClick={() => { setMode("register"); setError(""); setPassword(""); setConfirmPassword(""); }}
+            onClick={() => switchMode("register")}
             type="button"
           >
             புதிய Account
@@ -92,6 +108,7 @@ export default function AuthOtp() {
                 placeholder={t("namePlaceholder")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
                 required
               />
             </>
@@ -106,6 +123,7 @@ export default function AuthOtp() {
               value={phone}
               maxLength={10}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+              autoComplete="tel"
               required
             />
           </div>
@@ -116,6 +134,7 @@ export default function AuthOtp() {
             placeholder="குறைந்தது 6 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete={mode === "register" ? "new-password" : "current-password"}
             required
           />
 
@@ -127,6 +146,7 @@ export default function AuthOtp() {
                 placeholder="Password-ஐ மறுபடியும் type பண்ணுங்க"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
                 required
               />
             </>
@@ -136,7 +156,7 @@ export default function AuthOtp() {
 
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading
-              ? "..."
+              ? "⏳ Please wait..."
               : mode === "register"
               ? "Account உருவாக்கு"
               : "உள்நுழைய"}

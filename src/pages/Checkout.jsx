@@ -1,13 +1,19 @@
 // src/pages/Checkout.jsx
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { doc, updateDoc, addDoc, collection, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
+import { formatWeight, formatMoney } from "../utils/weightPricing";
 import "../styles/checkout.css";
 
-const RAZORPAY_KEY = "rzp_test_TDkLU1fQtiUItg"; // 🔑 replace with your Razorpay key
+// Razorpay key — replace with your live key in production
+// ⚠️ For production, order creation + verification MUST happen on a backend/Cloud Function
+const RAZORPAY_KEY = "rzp_test_TDkLU1fQtiUItg";
+
+// Flat delivery charge on every order — no free delivery exceptions
+const DELIVERY_CHARGE = 10;
 
 export default function Checkout({ cart, clearCart }) {
   const { user, profile } = useAuth();
@@ -29,52 +35,35 @@ export default function Checkout({ cart, clearCart }) {
   const [city, setCity] = useState("");
   const [pincode, setPincode] = useState("");
 
-  const [paymentMethod, setPaymentMethod] = useState("online"); // Default to online payment
+  const [paymentMethod, setPaymentMethod] = useState("online");
   const [placing, setPlacing] = useState(false);
-  const [completedOrderCount, setCompletedOrderCount] = useState(0);
 
   // Live Location states
   const [location, setLocation] = useState(null);
-  const [locationStatus, setLocationStatus] = useState("Checking location permission...");
+  const [locationStatus, setLocationStatus] = useState("Checking location...");
   const [showLocationPopup, setShowLocationPopup] = useState(false);
 
-  // Fetch location on mount
+  // Fetch GPS location on mount
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-          setLocationStatus("📍 Location shared successfully");
-        },
-        (err) => {
-          console.error("Location error:", err);
-          setLocationStatus("⚠️ Location access is disabled. Enable location to place your order.");
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      setLocationStatus("❌ Geolocation not supported by browser.");
+    if (!navigator.geolocation) {
+      setLocationStatus("❌ Geolocation not supported.");
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setLocationStatus("📍 Location shared successfully");
+      },
+      (err) => {
+        // Location is optional — order can still be placed without it
+        setLocationStatus("⚠️ Location not shared. (Optional — address is used for delivery)");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }, []);
-
-  // Fetch count of previous completed orders (status === "delivered")
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, "orders"), where("userId", "==", user.uid));
-    const unsub = onSnapshot(q, (snap) => {
-      const userOrders = snap.docs.map((doc) => doc.data());
-      const count = userOrders.filter((o) => o.status === "delivered").length;
-      setCompletedOrderCount(count);
-      // Auto switch payment method if they have completed 5 orders and want COD
-      if (count < 5) {
-        setPaymentMethod("online");
-      }
-    });
-    return unsub;
-  }, [user]);
 
   // Pre-fill profile & saved address if available
   useEffect(() => {
@@ -92,11 +81,9 @@ export default function Checkout({ cart, clearCart }) {
     }
   }, [profile]);
 
+  // Always ₹10 delivery charge when cart has items
   const itemsTotal = checkoutItems.reduce((sum, c) => sum + c.price * c.qty, 0);
-
-  // Free delivery logic: first 5 successful online orders are free delivery.
-  const isFreeDelivery = paymentMethod === "online" && completedOrderCount < 5;
-  const deliveryCharge = itemsTotal > 0 ? (isFreeDelivery ? 0 : 10) : 0;
+  const deliveryCharge = itemsTotal > 0 ? DELIVERY_CHARGE : 0;
   const totalAmount = itemsTotal + deliveryCharge;
 
   // Validate address input fields
@@ -115,10 +102,14 @@ export default function Checkout({ cart, clearCart }) {
     return null;
   };
 
-  // Helper to trigger GPS check and save/submit order
+  // Helper: try to get GPS, then run the submit callback
   const verifyLocationAndSubmit = (submitCallback) => {
-    if (!location) {
-      setLocationStatus("Checking location...");
+    if (location) {
+      submitCallback(location);
+      return;
+    }
+    // Try one more time to get location
+    if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const loc = {
@@ -129,15 +120,14 @@ export default function Checkout({ cart, clearCart }) {
           setLocationStatus("📍 Location shared successfully");
           submitCallback(loc);
         },
-        (err) => {
-          console.error("Location error:", err);
-          setLocationStatus("⚠️ Location access denied.");
-          setShowLocationPopup(true);
+        () => {
+          // Location optional — proceed without it
+          submitCallback(null);
         },
-        { enableHighAccuracy: true, timeout: 10000 }
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     } else {
-      submitCallback(location);
+      submitCallback(null);
     }
   };
 
@@ -161,14 +151,20 @@ export default function Checkout({ cart, clearCart }) {
       location: verifiedLoc || null,
     });
 
-    const formattedAddress = `${name.trim()}, ${phone.trim()}, ${houseNo.trim()}, ${street.trim()}, ${area.trim()}, ${landmark.trim() ? "Near " + landmark.trim() + ", " : ""}${city.trim()} - ${pincode.trim()}`;
+    const formattedAddress = `${name.trim()}, ${phone.trim()}, ${houseNo.trim()}, ${street.trim()}, ${area.trim()}${landmark.trim() ? ", Near " + landmark.trim() : ""}, ${city.trim()} - ${pincode.trim()}`;
 
-    // 2. Add document to orders collection
+    // 2. Add order document to Firestore
     const orderRef = await addDoc(collection(db, "orders"), {
       userId: user.uid,
       customerName: name.trim(),
       customerPhone: `+91${phone.trim().replace(/\D/g, "")}`,
-      items: checkoutItems.map((c) => ({ id: c.id, name: c.name, price: c.price, qty: c.qty })),
+      items: checkoutItems.map((c) => ({
+        id: c.id,
+        name: c.name,
+        price: c.price,
+        qty: c.qty,
+        weight: c.weight || null,
+      })),
       itemsTotal,
       deliveryCharge,
       totalAmount,
@@ -176,14 +172,16 @@ export default function Checkout({ cart, clearCart }) {
       rawAddressString: formattedAddress,
       paymentMethod,
       paymentStatus, // "pending" (COD) | "paid" (online)
-      status: "pending", // pending -> confirmed -> picked_up -> out_for_delivery -> delivered
+      status: "pending",
       latitude: verifiedLoc?.latitude || null,
       longitude: verifiedLoc?.longitude || null,
       createdAt: serverTimestamp(),
     });
 
     // 3. Store Owner Notification doc
-    const itemsSummary = checkoutItems.map((c) => `${c.name} x${c.qty}`).join(", ");
+    const itemsSummary = checkoutItems
+      .map((c) => `${c.name}${c.weight ? ` (${formatWeight(c.weight)})` : ""} x${c.qty}`)
+      .join(", ");
     await addDoc(collection(db, "notifications"), {
       type: "new_order",
       orderId: orderRef.id,
@@ -209,12 +207,6 @@ export default function Checkout({ cart, clearCart }) {
   };
 
   const handleCodOrder = () => {
-    // COD policy check: first 5 orders online payment only
-    if (completedOrderCount < 5) {
-      alert("Your first 5 orders must be paid online. Cash on Delivery will be available after completing 5 successful online orders.");
-      return;
-    }
-
     const validationError = validateAddress();
     if (validationError) return alert(validationError);
 
@@ -223,7 +215,7 @@ export default function Checkout({ cart, clearCart }) {
       try {
         await createOrder("pending", verifiedLoc);
         if (!buyNowProduct) clearCart();
-        navigate("/profile");
+        navigate("/profile", { replace: true });
       } catch (err) {
         console.error(err);
         alert(t("orderFailed"));
@@ -236,7 +228,12 @@ export default function Checkout({ cart, clearCart }) {
   const handleOnlinePayment = () => {
     const validationError = validateAddress();
     if (validationError) return alert(validationError);
-    if (!window.Razorpay) return alert("Razorpay SDK load ஆகல. Internet check பண்ணுங்க.");
+
+    // Guard: Razorpay SDK may not load in offline APK context
+    if (!window.Razorpay) {
+      alert("Payment gateway is loading. Please wait a moment and try again, or choose Cash on Delivery.");
+      return;
+    }
 
     verifyLocationAndSubmit((verifiedLoc) => {
       const options = {
@@ -251,7 +248,7 @@ export default function Checkout({ cart, clearCart }) {
           try {
             await createOrder("paid", verifiedLoc);
             if (!buyNowProduct) clearCart();
-            navigate("/profile");
+            navigate("/profile", { replace: true });
           } catch (err) {
             console.error(err);
             alert("Payment succeeded but order creation failed. Please contact support.");
@@ -261,22 +258,30 @@ export default function Checkout({ cart, clearCart }) {
         },
         prefill: {
           name: name.trim() || profile?.name || "",
-          contact: phone.trim() || user?.phoneNumber || "",
+          contact: phone.trim() || "",
         },
         theme: { color: "#c9a227" },
+        modal: {
+          ondismiss: () => {
+            setPlacing(false);
+          },
+        },
       };
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+      try {
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", (response) => {
+          console.error("Razorpay payment failed:", response.error);
+          alert("Payment failed: " + (response.error?.description || "Please try again."));
+          setPlacing(false);
+        });
+        rzp.open();
+      } catch (err) {
+        console.error("Razorpay init error:", err);
+        alert("Could not open payment gateway. Please try COD or check your internet connection.");
+        setPlacing(false);
+      }
     });
-  };
-
-  const handlePaymentMethodSelection = (method) => {
-    if (method === "cod" && completedOrderCount < 5) {
-      alert("Your first 5 orders must be paid online.\nCash on Delivery will be available after completing 5 successful online orders.");
-      return;
-    }
-    setPaymentMethod(method);
   };
 
   return (
@@ -284,167 +289,144 @@ export default function Checkout({ cart, clearCart }) {
       <h1>{t("checkout")}</h1>
 
       {/* Geolocation Status Banner */}
-      <div className="checkout-section" style={{ fontSize: "13px", background: "#f5f6fa", padding: "10px 16px", borderRadius: "8px" }}>
+      <div className="checkout-section location-status-bar">
         <span>{locationStatus}</span>
       </div>
 
+      {/* Delivery Address */}
       <div className="checkout-section">
         <h3>🏠 {t("deliveryAddress")}</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div>
-            <label style={{ fontSize: "12px", color: "#666", fontWeight: "600" }}>Name *</label>
+        <div className="checkout-form-fields">
+          <div className="checkout-field">
+            <label>Name *</label>
             <input
               type="text"
               placeholder="e.g. Rajesh Kumar"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", marginTop: "4px" }}
+              autoComplete="name"
             />
           </div>
-          <div>
-            <label style={{ fontSize: "12px", color: "#666", fontWeight: "600" }}>Phone Number (10 digits) *</label>
+          <div className="checkout-field">
+            <label>Phone Number (10 digits) *</label>
             <input
-              type="text"
+              type="tel"
               maxLength={10}
               placeholder="e.g. 9876543210"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", marginTop: "4px" }}
+              autoComplete="tel"
             />
           </div>
-          <div>
-            <label style={{ fontSize: "12px", color: "#666", fontWeight: "600" }}>House / Door Number *</label>
+          <div className="checkout-field">
+            <label>House / Door Number *</label>
             <input
               type="text"
               placeholder="e.g. 10-A, Ground Floor"
               value={houseNo}
               onChange={(e) => setHouseNo(e.target.value)}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", marginTop: "4px" }}
             />
           </div>
-          <div>
-            <label style={{ fontSize: "12px", color: "#666", fontWeight: "600" }}>Street Name *</label>
+          <div className="checkout-field">
+            <label>Street Name *</label>
             <input
               type="text"
               placeholder="e.g. Gandhi Street"
               value={street}
               onChange={(e) => setStreet(e.target.value)}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", marginTop: "4px" }}
             />
           </div>
-          <div>
-            <label style={{ fontSize: "12px", color: "#666", fontWeight: "600" }}>Area / Neighborhood *</label>
+          <div className="checkout-field">
+            <label>Area / Neighborhood *</label>
             <input
               type="text"
               placeholder="e.g. Anna Nagar"
               value={area}
               onChange={(e) => setArea(e.target.value)}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", marginTop: "4px" }}
             />
           </div>
-          <div>
-            <label style={{ fontSize: "12px", color: "#666", fontWeight: "600" }}>Landmark (Optional)</label>
+          <div className="checkout-field">
+            <label>Landmark (Optional)</label>
             <input
               type="text"
               placeholder="e.g. Near Vinayagar Temple"
               value={landmark}
               onChange={(e) => setLandmark(e.target.value)}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", marginTop: "4px" }}
             />
           </div>
-          <div>
-            <label style={{ fontSize: "12px", color: "#666", fontWeight: "600" }}>City / Village *</label>
+          <div className="checkout-field">
+            <label>City / Village *</label>
             <input
               type="text"
               placeholder="e.g. Madurai"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", marginTop: "4px" }}
             />
           </div>
-          <div>
-            <label style={{ fontSize: "12px", color: "#666", fontWeight: "600" }}>Pincode (6 digits) *</label>
+          <div className="checkout-field">
+            <label>Pincode (6 digits) *</label>
             <input
               type="text"
               maxLength={6}
               placeholder="e.g. 625001"
               value={pincode}
               onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
-              style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "14px", marginTop: "4px" }}
+              inputMode="numeric"
             />
           </div>
         </div>
       </div>
 
+      {/* Order Summary */}
       <div className="checkout-section">
         <h3>🛒 {t("orderSummary")}</h3>
         {checkoutItems.map((c) => (
-          <div key={c.id} className="summary-row">
-            <span>{c.name} x{c.qty}</span>
-            <span>₹{c.price * c.qty}</span>
+          <div key={c.weight ? `${c.id}-${c.weight}` : c.id} className="summary-row">
+            <span>
+              {c.name}{c.weight ? ` (Weight: ${formatWeight(c.weight)})` : ""} x{c.qty}
+            </span>
+            <span>₹{formatMoney(c.price * c.qty)}</span>
           </div>
         ))}
         <div className="summary-row">
           <span>{t("deliveryCharge")}</span>
-          <span>
-            {isFreeDelivery ? (
-              <strong style={{ color: "#2e7d32" }}>FREE Delivery (First 5 orders)</strong>
-            ) : (
-              `₹${deliveryCharge}`
-            )}
-          </span>
+          <span style={{ fontWeight: "700" }}>₹{deliveryCharge}</span>
         </div>
-        {completedOrderCount < 5 && paymentMethod === "online" && (
-          <div style={{ fontSize: "11.5px", color: "#2e7d32", fontWeight: "600", marginTop: "4px" }}>
-            💡 Free delivery active for your first 5 online orders!
-          </div>
-        )}
         <div className="summary-row total">
           <span>{t("total")}</span>
-          <span>₹{totalAmount}</span>
+          <span>₹{formatMoney(totalAmount)}</span>
         </div>
       </div>
 
+      {/* Payment Method */}
       <div className="checkout-section">
         <h3>💳 {t("paymentMethod")}</h3>
         <div className="payment-options">
           <label
             className={`payment-option ${paymentMethod === "online" ? "selected" : ""}`}
-            onClick={() => handlePaymentMethodSelection("online")}
+            onClick={() => setPaymentMethod("online")}
           >
             <input
               type="radio"
               name="payment"
               checked={paymentMethod === "online"}
-              readOnly
+              onChange={() => setPaymentMethod("online")}
             />
             {t("onlinePayment")}
           </label>
           <label
-            className={`payment-option ${paymentMethod === "cod" ? "selected" : ""} ${completedOrderCount < 5 ? "disabled-option" : ""}`}
-            onClick={() => handlePaymentMethodSelection("cod")}
-            style={completedOrderCount < 5 ? { opacity: 0.6, cursor: "not-allowed" } : {}}
+            className={`payment-option ${paymentMethod === "cod" ? "selected" : ""}`}
+            onClick={() => setPaymentMethod("cod")}
           >
             <input
               type="radio"
               name="payment"
               checked={paymentMethod === "cod"}
-              disabled={completedOrderCount < 5}
-              readOnly
+              onChange={() => setPaymentMethod("cod")}
             />
             {t("cod")}
-            {completedOrderCount < 5 && (
-              <span style={{ fontSize: "10px", background: "#fdeaea", color: "#d32f2f", padding: "2px 6px", borderRadius: "4px", marginLeft: "auto" }}>
-                COD Locked
-              </span>
-            )}
           </label>
         </div>
-        {completedOrderCount < 5 && (
-          <p style={{ fontSize: "11px", color: "#d32f2f", margin: "8px 0 0", fontWeight: "600" }}>
-            ⚠️ Cash on Delivery (COD) will unlock after you complete 5 successful online orders. (Current: {completedOrderCount}/5)
-          </p>
-        )}
       </div>
 
       <button
@@ -452,40 +434,41 @@ export default function Checkout({ cart, clearCart }) {
         disabled={placing || checkoutItems.length === 0}
         onClick={paymentMethod === "cod" ? handleCodOrder : handleOnlinePayment}
       >
-        {placing ? t("placingOrder") : `${t("placeOrder")} · ₹${totalAmount}`}
+        {placing ? t("placingOrder") : `${t("placeOrder")} · ₹${formatMoney(totalAmount)}`}
       </button>
 
-      {/* 📍 Custom Location Check Alert Modal Popup */}
+      {/* Location popup — shown only if GPS was required and denied */}
       {showLocationPopup && (
         <div className="modal-backdrop">
           <div className="modal-content">
             <span style={{ fontSize: "40px" }}>📍</span>
-            <h2>Location Required</h2>
-            <p>Please enable Location to continue placing your order.</p>
-            <button
-              className="place-order-btn"
-              onClick={() => {
-                setShowLocationPopup(false);
-                setLocationStatus("Checking location...");
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    setLocation({
-                      latitude: pos.coords.latitude,
-                      longitude: pos.coords.longitude,
-                    });
-                    setLocationStatus("📍 Location shared successfully");
-                  },
-                  (err) => {
-                    console.error(err);
-                    setLocationStatus("⚠️ Location access denied.");
-                    setShowLocationPopup(true); // reopen
-                  },
-                  { enableHighAccuracy: true, timeout: 10000 }
-                );
-              }}
-            >
-              Try Again
-            </button>
+            <h2>Location Access</h2>
+            <p>Location is optional but helps with accurate delivery. You can still proceed without it.</p>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                className="place-order-btn"
+                style={{ maxWidth: "160px" }}
+                onClick={() => {
+                  setShowLocationPopup(false);
+                  navigator.geolocation?.getCurrentPosition(
+                    (pos) => {
+                      setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+                      setLocationStatus("📍 Location shared successfully");
+                    },
+                    () => setLocationStatus("⚠️ Location not shared."),
+                    { enableHighAccuracy: true, timeout: 10000 }
+                  );
+                }}
+              >
+                Enable Location
+              </button>
+              <button
+                style={{ background: "#f5f5f5", color: "#333", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "700", cursor: "pointer" }}
+                onClick={() => setShowLocationPopup(false)}
+              >
+                Continue Without
+              </button>
+            </div>
           </div>
         </div>
       )}

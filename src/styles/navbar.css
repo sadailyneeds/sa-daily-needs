@@ -1,3 +1,5 @@
+/* src/styles/navbar.css */
+
 .navbar {
   position: sticky;
   top: 0;
@@ -6,42 +8,57 @@
   align-items: center;
   justify-content: space-between;
   background: var(--black, #141414);
-  padding: 8px 20px;
+  padding: 8px 16px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  /* Prevent navbar from causing horizontal overflow */
+  width: 100%;
+  overflow: hidden;
 }
 
+/* Brand */
 .navbar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   text-decoration: none;
+  flex-shrink: 0;
+  min-width: 0;
 }
 .navbar-logo {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   border-radius: 50%;
   background: #000;
+  flex-shrink: 0;
 }
-.navbar-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.navbar-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 0;
+}
 .navbar-title {
   font-weight: 800;
-  font-size: 18px;
+  font-size: 15px;
   background: linear-gradient(135deg, #e9c85c, #c9a227);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  white-space: nowrap;
 }
-.navbar-tagline { font-size: 10px; color: #7fb069; letter-spacing: 0.3px; }
+.navbar-tagline {
+  font-size: 9px;
+  color: #7fb069;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
 
-.navbar-actions { display: flex; align-items: center; gap: 14px; }
-
-/* Desktop-only search bar + categories quick-link. Hidden on mobile so the
-   mobile header stays clean: Logo / Cart / Profile / Language. */
+/* Desktop search — hidden on mobile */
 .navbar-search-desktop {
   display: none;
   flex: 1;
   max-width: 420px;
-  margin: 0 20px;
+  margin: 0 16px;
 }
 .navbar-search-desktop input {
   width: 100%;
@@ -50,6 +67,7 @@
   border: none;
   font-size: 13.5px;
   outline: none;
+  font-family: inherit;
 }
 .navbar-search-desktop button {
   border: none;
@@ -66,16 +84,28 @@
   .navbar { padding: 10px 32px; }
   .navbar-search-desktop { display: flex; }
   .navbar-categories-link { display: inline-block; }
+  .navbar-logo { width: 42px; height: 42px; }
+  .navbar-title { font-size: 18px; }
+  .navbar-tagline { font-size: 10px; }
+}
+
+/* Actions */
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .navbar-link {
   color: #e9c85c;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   border: 1px solid #e9c85c;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border-radius: 8px;
+  white-space: nowrap;
 }
 .admin-link:hover { background: #e9c85c; color: #141414; }
 
@@ -84,6 +114,7 @@
   font-size: 20px;
   text-decoration: none;
   color: #fff;
+  line-height: 1;
 }
 .cart-badge {
   position: absolute;
@@ -101,27 +132,38 @@
   justify-content: center;
 }
 
-.navbar-login, .navbar-profile {
+.navbar-login,
+.navbar-profile {
   background: #3f7d32;
   color: #fff;
   border: none;
-  padding: 7px 14px;
+  padding: 6px 12px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
 }
-.navbar-login:hover, .navbar-profile:hover { background: #2e5c25; }
+.navbar-login:hover,
+.navbar-profile:hover { background: #2e5c25; }
 
-@media (max-width: 480px) {
+/* Very small screens — ultra compact */
+@media (max-width: 380px) {
+  .navbar { padding: 6px 10px; }
   .navbar-tagline { display: none; }
-  .navbar-title { font-size: 15px; }
-  .navbar-logo { width: 34px; height: 34px; }
-  .navbar-actions { gap: 8px; }
-  .navbar-profile, .navbar-login { padding: 6px 10px; font-size: 12px; }
-  .navbar-profile { max-width: 78px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lang-btn { padding: 6px 8px; font-size: 11px; }
-  .admin-link { padding: 6px 8px; font-size: 12px; }
+  .navbar-title { font-size: 13px; }
+  .navbar-logo { width: 30px; height: 30px; }
+  .navbar-actions { gap: 6px; }
+  .navbar-profile,
+  .navbar-login { padding: 5px 8px; font-size: 11px; }
+  .navbar-profile {
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .admin-link { padding: 5px 7px; font-size: 11px; }
+  .lang-btn { padding: 5px 7px; font-size: 10px; }
 }
 
 /* Language switcher */
@@ -130,11 +172,13 @@
   background: #232323;
   color: #fff;
   border: 1px solid #444;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border-radius: 8px;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
 }
 .lang-dropdown {
   position: absolute;
@@ -142,7 +186,7 @@
   right: 0;
   background: #fff;
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   min-width: 120px;
   z-index: 200;
@@ -158,6 +202,7 @@
   font-weight: 600;
   color: #333;
   cursor: pointer;
+  font-family: inherit;
 }
 .lang-option:hover { background: #f5f5f5; }
 .lang-option.active { color: #3f7d32; background: #f3f8f1; }
