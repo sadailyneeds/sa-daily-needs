@@ -21,6 +21,11 @@ const emptyForm = {
   mrpPerKg: "",
 };
 
+// Cloudinary config
+const CLOUDINARY_CLOUD_NAME = "bcjxj8su";
+const CLOUDINARY_UPLOAD_PRESET = "sa_store_images";
+const CLOUDINARY_UPLOAD_URL = "https://api.cloudinary.com/v1_1/bcjxj8su/image/upload";
+
 export default function AddEditProduct() {
   const { id } = useParams(); // present only when editing
   const isEdit = Boolean(id);
@@ -29,6 +34,11 @@ export default function AddEditProduct() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [imgError, setImgError] = useState(false);
+
+  // Cloudinary upload state
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     if (isEdit) {
@@ -58,6 +68,59 @@ export default function AddEditProduct() {
     const { name, type, value, checked } = e.target;
     setForm({ ...form, [name]: type === "checkbox" ? checked : value });
     if (name === "imageUrl") setImgError(false);
+  };
+
+  // Handle file selection -> upload directly to Cloudinary
+  const handleImageSelect = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setUploadError("");
+    setImgError(false);
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+      // Simulate incremental progress since fetch() doesn't expose
+      // native upload progress events (that requires XMLHttpRequest).
+      // This still gives the user visual feedback during the upload.
+      let progressTimer = setInterval(() => {
+        setUploadProgress((prev) => (prev < 90 ? prev + 10 : prev));
+      }, 200);
+
+      const response = await fetch(CLOUDINARY_UPLOAD_URL, {
+        method: "POST",
+        body: formData,
+      });
+
+      clearInterval(progressTimer);
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const data = await response.json();
+
+      if (!data.secure_url) {
+        throw new Error("No secure_url returned from Cloudinary");
+      }
+
+      setUploadProgress(100);
+      setForm((prev) => ({ ...prev, imageUrl: data.secure_url }));
+      setImgError(false);
+    } catch (err) {
+      console.error(err);
+      setUploadError("⚠️ Image upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+      // Reset the file input value so the same file can be re-selected if needed
+      e.target.value = "";
+      setTimeout(() => setUploadProgress(0), 800);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -253,7 +316,7 @@ export default function AddEditProduct() {
 
           {/* Right column: image */}
           <div className="form-right">
-            <label>Product Image URL *</label>
+            <label>Product Image *</label>
             <div className="image-upload-box">
               {form.imageUrl && !imgError ? (
                 <img
@@ -268,17 +331,56 @@ export default function AddEditProduct() {
                 </span>
               )}
             </div>
+
+            {/* Hidden native file input triggered by the "Choose Image" button */}
             <input
-              type="url"
-              name="imageUrl"
-              placeholder="https://example.com/product.jpg"
-              value={form.imageUrl}
-              onChange={handleChange}
-              required
+              type="file"
+              accept="image/*"
+              id="product-image-input"
+              onChange={handleImageSelect}
+              style={{ display: "none" }}
             />
+            <button
+              type="button"
+              className="btn-primary-admin"
+              onClick={() => document.getElementById("product-image-input").click()}
+              disabled={uploading}
+              style={{ width: "100%", padding: "12px", fontSize: "14px", marginTop: "6px" }}
+            >
+              {uploading ? `⬆️ Uploading... ${uploadProgress}%` : "📁 Choose Image"}
+            </button>
+
+            {uploading && (
+              <div
+                style={{
+                  width: "100%",
+                  height: "6px",
+                  background: "#eee",
+                  borderRadius: "4px",
+                  marginTop: "8px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${uploadProgress}%`,
+                    height: "100%",
+                    background: "#22c55e",
+                    transition: "width 0.2s ease",
+                  }}
+                />
+              </div>
+            )}
+
+            {uploadError && (
+              <p className="upload-hint" style={{ color: "#dc2626", fontWeight: 600 }}>
+                {uploadError}
+              </p>
+            )}
+
             <p className="upload-hint">
-              💡 Google Images → Right-click → "Copy image address" → paste here.
-              Any size image auto-fits the square box.
+              💡 Choose a photo from your device gallery. It will upload automatically and the
+              preview will appear above.
             </p>
           </div>
         </div>
@@ -286,10 +388,10 @@ export default function AddEditProduct() {
         <button
           type="submit"
           className="btn-primary-admin"
-          disabled={saving}
+          disabled={saving || uploading}
           style={{ marginTop: "20px", width: "100%", padding: "14px", fontSize: "15px" }}
         >
-          {saving ? "Saving..." : isEdit ? "✅ Update Product" : "✅ Add Product"}
+          {saving ? "Saving..." : uploading ? "Please wait for image upload..." : isEdit ? "✅ Update Product" : "✅ Add Product"}
         </button>
       </form>
     </div>
